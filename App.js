@@ -11,27 +11,34 @@ import {
   Platform,
   KeyboardAvoidingView,
   SectionList,
+  ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { parseInput, detectCategory, getCategoryColor, getCategoryIcon } from './src/utils/parser';
-import { loadTransactions, addTransaction, removeTransaction } from './src/utils/storage';
+import { loadTransactions, addTransaction, removeTransaction, loadDebts, addDebt, removeDebt, toggleDebtSettled } from './src/utils/storage';
 import { isToday, isThisWeek, formatAmount, formatDate, generateId } from './src/utils/helpers';
 
 export default function App() {
   const [input, setInput] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [lastDeleted, setLastDeleted] = useState(null);
-  const [screen, setScreen] = useState('home'); // 'home' or 'history'
+  const [screen, setScreen] = useState('home'); // 'home', 'history', or 'owe'
   const inputRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const undoAnim = useRef(new Animated.Value(0)).current;
 
-  // Load transactions on mount
+  // Owe screen state
+  const [debts, setDebts] = useState([]);
+  const [debtInput, setDebtInput] = useState('');
+  const [debtDirection, setDebtDirection] = useState('owed'); // 'owed' = they owe me, 'owe' = I owe them
+
+  // Load transactions + debts on mount
   useEffect(() => {
     (async () => {
       const saved = await loadTransactions();
       setTransactions(saved);
-      // Fade in animation
+      const savedDebts = await loadDebts();
+      setDebts(savedDebts);
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 600,
@@ -189,29 +196,199 @@ export default function App() {
     [handleDelete]
   );
 
+  // ==================== OWE HANDLERS ====================
+  const handleAddDebt = useCallback(async () => {
+    const trimmed = debtInput.trim();
+    if (!trimmed) return;
+    // Parse: "ali 20 lunch" or "20 ali lunch"
+    const match = trimmed.match(/(\d+\.?\d*)/);
+    if (!match) return;
+    const amount = parseFloat(match[1]);
+    if (isNaN(amount) || amount <= 0) return;
+    const rest = trimmed.replace(match[0], '').trim();
+    const words = rest.split(/\s+/);
+    const person = words[0] || 'someone';
+    const note = words.slice(1).join(' ') || '';
+    const debt = {
+      id: generateId(),
+      person,
+      amount,
+      note,
+      direction: debtDirection,
+      settled: false,
+      date: new Date().toISOString(),
+    };
+    const updated = await addDebt(debt, debts);
+    setDebts(updated);
+    setDebtInput('');
+    Keyboard.dismiss();
+  }, [debtInput, debtDirection, debts]);
+
+  const handleToggleDebt = useCallback(async (id) => {
+    const updated = await toggleDebtSettled(id, debts);
+    setDebts(updated);
+  }, [debts]);
+
+  const handleDeleteDebt = useCallback(async (id) => {
+    const updated = await removeDebt(id, debts);
+    setDebts(updated);
+  }, [debts]);
+
+  // Owe summary
+  const oweSummary = useMemo(() => {
+    const unsettled = debts.filter((d) => !d.settled);
+    const theyOweMe = unsettled.filter((d) => d.direction === 'owed').reduce((s, d) => s + d.amount, 0);
+    const iOweThem = unsettled.filter((d) => d.direction === 'owe').reduce((s, d) => s + d.amount, 0);
+    return { theyOweMe, iOweThem, net: theyOweMe - iOweThem };
+  }, [debts]);
+
+  // ==================== OWE SCREEN ====================
+  if (screen === 'owe') {
+    const unsettledDebts = debts.filter((d) => !d.settled);
+    const settledDebts = debts.filter((d) => d.settled);
+    return (
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <StatusBar style="light" />
+        <View style={styles.inner}>
+          <View style={styles.historyHeader}>
+            <TouchableOpacity onPress={() => setScreen('home')} activeOpacity={0.7} style={styles.backBtn}>
+              <Text style={styles.backBtnText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.historyTitle}>💸 Owe Tracker</Text>
+            <Text style={styles.historySubtitle}>Track who owes who</Text>
+          </View>
+
+          {/* Owe Summary Cards */}
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryCard, styles.todayCard]}>
+              <Text style={styles.summaryLabel}>They Owe Me</Text>
+              <Text style={[styles.summaryAmount, { color: '#4ECDC4' }]}>{formatAmount(oweSummary.theyOweMe)}</Text>
+            </View>
+            <View style={[styles.summaryCard, styles.weekCard]}>
+              <Text style={styles.summaryLabel}>I Owe Them</Text>
+              <Text style={[styles.summaryAmount, { color: '#FF6B6B' }]}>{formatAmount(oweSummary.iOweThem)}</Text>
+            </View>
+          </View>
+
+          {/* Direction Toggle */}
+          <View style={styles.oweToggleRow}>
+            <TouchableOpacity
+              style={[styles.oweToggleBtn, debtDirection === 'owed' && styles.oweToggleActive]}
+              onPress={() => setDebtDirection('owed')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.oweToggleText, debtDirection === 'owed' && styles.oweToggleTextActive]}>They owe me</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.oweToggleBtn, debtDirection === 'owe' && styles.oweToggleActiveRed]}
+              onPress={() => setDebtDirection('owe')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.oweToggleText, debtDirection === 'owe' && styles.oweToggleTextActive]}>I owe them</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Debt Input */}
+          <View style={styles.inputSection}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder='e.g. "ali 20 lunch" or "sarah 50"'
+                placeholderTextColor="#666"
+                value={debtInput}
+                onChangeText={setDebtInput}
+                onSubmitEditing={handleAddDebt}
+                returnKeyType="done"
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={[styles.submitBtn, !debtInput.trim() && styles.submitBtnDisabled]}
+                onPress={handleAddDebt}
+                disabled={!debtInput.trim()}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.submitBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Debt List */}
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+            {unsettledDebts.length > 0 && (
+              <View>
+                <Text style={styles.sectionTitle}>Unsettled ({unsettledDebts.length})</Text>
+                {unsettledDebts.map((d) => (
+                  <View key={d.id} style={styles.oweRow}>
+                    <TouchableOpacity onPress={() => handleToggleDebt(d.id)} style={styles.oweCheckbox} activeOpacity={0.6}>
+                      <Text style={styles.oweCheckboxText}>☐</Text>
+                    </TouchableOpacity>
+                    <View style={styles.oweInfo}>
+                      <Text style={styles.owePersonText}>
+                        {d.direction === 'owed' ? `${d.person} owes you` : `You owe ${d.person}`}
+                      </Text>
+                      {d.note ? <Text style={styles.oweNoteText}>{d.note} · {formatDate(d.date)}</Text> : <Text style={styles.oweNoteText}>{formatDate(d.date)}</Text>}
+                    </View>
+                    <Text style={[styles.oweAmount, { color: d.direction === 'owed' ? '#4ECDC4' : '#FF6B6B' }]}>
+                      {formatAmount(d.amount)}
+                    </Text>
+                    <TouchableOpacity onPress={() => handleDeleteDebt(d.id)} style={styles.deleteBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Text style={styles.deleteBtnText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+            {settledDebts.length > 0 && (
+              <View style={{ marginTop: 20 }}>
+                <Text style={[styles.sectionTitle, { color: '#555' }]}>Settled ✓ ({settledDebts.length})</Text>
+                {settledDebts.map((d) => (
+                  <View key={d.id} style={[styles.oweRow, { opacity: 0.5 }]}>
+                    <TouchableOpacity onPress={() => handleToggleDebt(d.id)} style={styles.oweCheckbox} activeOpacity={0.6}>
+                      <Text style={styles.oweCheckboxChecked}>☑</Text>
+                    </TouchableOpacity>
+                    <View style={styles.oweInfo}>
+                      <Text style={[styles.owePersonText, styles.oweSettledText]}>
+                        {d.direction === 'owed' ? `${d.person} owes you` : `You owe ${d.person}`}
+                      </Text>
+                      {d.note ? <Text style={styles.oweNoteText}>{d.note}</Text> : null}
+                    </View>
+                    <Text style={[styles.oweAmount, { color: '#555' }]}>{formatAmount(d.amount)}</Text>
+                    <TouchableOpacity onPress={() => handleDeleteDebt(d.id)} style={styles.deleteBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Text style={styles.deleteBtnText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+            {debts.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>🤝</Text>
+                <Text style={styles.emptyText}>No debts tracked</Text>
+                <Text style={styles.emptyHint}>Type "ali 20 lunch" to add one</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
   // ==================== HISTORY SCREEN ====================
   if (screen === 'history') {
     return (
       <View style={styles.container}>
         <StatusBar style="light" />
         <View style={styles.inner}>
-          {/* History Header */}
           <View style={styles.historyHeader}>
-            <TouchableOpacity
-              onPress={() => setScreen('home')}
-              activeOpacity={0.7}
-              style={styles.backBtn}
-            >
+            <TouchableOpacity onPress={() => setScreen('home')} activeOpacity={0.7} style={styles.backBtn}>
               <Text style={styles.backBtnText}>← Back</Text>
             </TouchableOpacity>
             <Text style={styles.historyTitle}>Transaction History</Text>
             <Text style={styles.historySubtitle}>
-              {transactions.length} total transaction{transactions.length !== 1 ? 's' : ''}
-              {' · '}
-              {formatAmount(transactions.reduce((s, t) => s + t.amount, 0))}
+              {transactions.length} total transaction{transactions.length !== 1 ? 's' : ''}{' · '}{formatAmount(transactions.reduce((s, t) => s + t.amount, 0))}
             </Text>
           </View>
-
           {transactions.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>📭</Text>
@@ -224,9 +401,7 @@ export default function App() {
               renderSectionHeader={({ section }) => (
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionHeaderText}>{section.title}</Text>
-                  <Text style={styles.sectionHeaderTotal}>
-                    {formatAmount(section.total)}
-                  </Text>
+                  <Text style={styles.sectionHeaderTotal}>{formatAmount(section.total)}</Text>
                 </View>
               )}
               keyExtractor={(item) => item.id}
@@ -235,13 +410,9 @@ export default function App() {
               stickySectionHeadersEnabled={true}
             />
           )}
-
-          {/* Undo Bar */}
           {lastDeleted && (
             <Animated.View style={[styles.undoBar, { opacity: undoAnim }]}>
-              <Text style={styles.undoText}>
-                Deleted {formatAmount(lastDeleted.amount)} {lastDeleted.description}
-              </Text>
+              <Text style={styles.undoText}>Deleted {formatAmount(lastDeleted.amount)} {lastDeleted.description}</Text>
               <TouchableOpacity onPress={handleUndo} activeOpacity={0.7}>
                 <Text style={styles.undoBtn}>UNDO</Text>
               </TouchableOpacity>
@@ -374,16 +545,25 @@ export default function App() {
           )}
         </View>
 
-        {/* ===== HISTORY BUTTON ===== */}
-        <TouchableOpacity
-          style={styles.historyBtn}
-          onPress={() => setScreen('history')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.historyBtnIcon}>📋</Text>
-          <Text style={styles.historyBtnText}>Transaction History</Text>
-          <Text style={styles.historyBtnArrow}>→</Text>
-        </TouchableOpacity>
+        {/* ===== BOTTOM BUTTONS ===== */}
+        <View style={styles.bottomBtnsRow}>
+          <TouchableOpacity
+            style={styles.bottomBtn}
+            onPress={() => setScreen('history')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.historyBtnIcon}>📋</Text>
+            <Text style={styles.historyBtnText}>History</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.bottomBtn}
+            onPress={() => setScreen('owe')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.historyBtnIcon}>🤝</Text>
+            <Text style={styles.historyBtnText}>Owe</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ===== UNDO BAR ===== */}
         {lastDeleted && (
@@ -666,15 +846,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // History Button (bottom of home screen)
-  historyBtn: {
+  // Bottom Buttons Row
+  bottomBtnsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: Platform.OS === 'ios' ? 36 : 24,
+  },
+  bottomBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#1A1A2E',
     borderRadius: 14,
     paddingVertical: 16,
-    marginBottom: Platform.OS === 'ios' ? 36 : 24,
     borderWidth: 1,
     borderColor: '#2A2A4A',
     gap: 8,
@@ -687,10 +872,83 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  historyBtnArrow: {
-    fontSize: 16,
+
+  // Owe Screen
+  oweToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  oweToggleBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#1A1A2E',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#2A2A4A',
+  },
+  oweToggleActive: {
+    borderColor: '#4ECDC4',
+    backgroundColor: '#1A2E2E',
+  },
+  oweToggleActiveRed: {
+    borderColor: '#FF6B6B',
+    backgroundColor: '#2E1A1A',
+  },
+  oweToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  oweToggleTextActive: {
+    color: '#FFFFFF',
+  },
+  oweRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    backgroundColor: '#12121F',
+    borderRadius: 14,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#1E1E35',
+  },
+  oweCheckbox: {
+    marginRight: 12,
+  },
+  oweCheckboxText: {
+    fontSize: 22,
     color: '#6C5CE7',
+  },
+  oweCheckboxChecked: {
+    fontSize: 22,
+    color: '#4ECDC4',
+  },
+  oweInfo: {
+    flex: 1,
+  },
+  owePersonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textTransform: 'capitalize',
+  },
+  oweNoteText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  oweSettledText: {
+    textDecorationLine: 'line-through',
+    color: '#555',
+  },
+  oweAmount: {
+    fontSize: 16,
     fontWeight: '700',
+    marginRight: 4,
   },
 
   // History Screen

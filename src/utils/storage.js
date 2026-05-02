@@ -71,3 +71,52 @@ export async function removeTransaction(id, currentTransactions) {
   await saveTransactions(updated);
   return updated;
 }
+
+// ==================== DEBTS / OWE ====================
+
+const DEBTS_KEY = 'moneyApp_debts';
+
+/**
+ * Load all debts from AsyncStorage.
+ * Each debt: { id, person, amount, note, direction ('owe'|'owed'), settled, date }
+ */
+export async function loadDebts() {
+  try {
+    const raw = await AsyncStorage.getItem(DEBTS_KEY);
+    if (raw) {
+      return JSON.parse(raw) || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('Failed to load debts:', error);
+    return [];
+  }
+}
+
+export async function saveDebts(debts) {
+  try {
+    await AsyncStorage.setItem(DEBTS_KEY, JSON.stringify(debts));
+  } catch (error) {
+    console.error('Failed to save debts:', error);
+  }
+}
+
+export async function addDebt(debt, currentDebts) {
+  const updated = [debt, ...currentDebts];
+  await saveDebts(updated);
+  return updated;
+}
+
+export async function removeDebt(id, currentDebts) {
+  const updated = currentDebts.filter((d) => d.id !== id);
+  await saveDebts(updated);
+  return updated;
+}
+
+export async function toggleDebtSettled(id, currentDebts) {
+  const updated = currentDebts.map((d) =>
+    d.id === id ? { ...d, settled: !d.settled } : d
+  );
+  await saveDebts(updated);
+  return updated;
+}
