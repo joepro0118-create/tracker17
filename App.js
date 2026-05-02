@@ -8,9 +8,9 @@ import {
   FlatList,
   Keyboard,
   Animated,
-  Alert,
   Platform,
   KeyboardAvoidingView,
+  SectionList,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { parseInput, detectCategory, getCategoryColor, getCategoryIcon } from './src/utils/parser';
@@ -21,6 +21,7 @@ export default function App() {
   const [input, setInput] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [lastDeleted, setLastDeleted] = useState(null);
+  const [screen, setScreen] = useState('home'); // 'home' or 'history'
   const inputRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const undoAnim = useRef(new Animated.Value(0)).current;
@@ -65,10 +66,7 @@ export default function App() {
   // Submit handler
   const handleSubmit = useCallback(async () => {
     const parsed = parseInput(input);
-    if (!parsed) {
-      // Subtle shake or just ignore
-      return;
-    }
+    if (!parsed) return;
 
     const category = detectCategory(parsed.description);
     const transaction = {
@@ -89,11 +87,9 @@ export default function App() {
   const handleUndo = useCallback(async () => {
     if (!lastDeleted) return;
     const updated = await addTransaction(lastDeleted, transactions);
-    // Re-sort by date
     updated.sort((a, b) => new Date(b.date) - new Date(a.date));
     setTransactions(updated);
     setLastDeleted(null);
-    // Hide undo bar
     Animated.timing(undoAnim, {
       toValue: 0,
       duration: 200,
@@ -101,39 +97,24 @@ export default function App() {
     }).start();
   }, [lastDeleted, transactions]);
 
-  // Delete a transaction
+  // Delete a transaction (instant, no confirmation — undo available)
   const handleDelete = useCallback(
-    (transaction) => {
-      Alert.alert(
-        'Delete Transaction',
-        `Remove ${formatAmount(transaction.amount)} ${transaction.description}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              const updated = await removeTransaction(transaction.id, transactions);
-              setTransactions(updated);
-              setLastDeleted(transaction);
-              // Show undo bar
-              Animated.timing(undoAnim, {
-                toValue: 1,
-                duration: 200,
-                useNativeDriver: true,
-              }).start();
-              // Auto-hide undo after 5 seconds
-              setTimeout(() => {
-                Animated.timing(undoAnim, {
-                  toValue: 0,
-                  duration: 200,
-                  useNativeDriver: true,
-                }).start(() => setLastDeleted(null));
-              }, 5000);
-            },
-          },
-        ]
-      );
+    async (transaction) => {
+      const updated = await removeTransaction(transaction.id, transactions);
+      setTransactions(updated);
+      setLastDeleted(transaction);
+      Animated.timing(undoAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      setTimeout(() => {
+        Animated.timing(undoAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => setLastDeleted(null));
+      }, 5000);
     },
     [transactions]
   );
@@ -147,19 +128,35 @@ export default function App() {
     return { ...parsed, category };
   }, [input]);
 
-  // Today's transactions
+  // Today's transactions only
   const todayTransactions = useMemo(
     () => transactions.filter((t) => isToday(t.date)),
     [transactions]
   );
 
+  // Group all transactions by date for history view
+  const groupedTransactions = useMemo(() => {
+    const groups = {};
+    transactions.forEach((t) => {
+      const dateKey = new Date(t.date).toLocaleDateString('en-MY', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+      if (!groups[dateKey]) {
+        groups[dateKey] = { title: dateKey, data: [], total: 0 };
+      }
+      groups[dateKey].data.push(t);
+      groups[dateKey].total += t.amount;
+    });
+    return Object.values(groups);
+  }, [transactions]);
+
+  // Render a single transaction row
   const renderTransaction = useCallback(
-    ({ item, index }) => (
-      <TouchableOpacity
-        onLongPress={() => handleDelete(item)}
-        activeOpacity={0.7}
-        style={styles.transactionRow}
-      >
+    ({ item }) => (
+      <View style={styles.transactionRow}>
         <View style={styles.transactionLeft}>
           <View
             style={[
@@ -179,11 +176,83 @@ export default function App() {
         <Text style={styles.transactionAmount}>
           -{formatAmount(item.amount)}
         </Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => handleDelete(item)}
+          activeOpacity={0.6}
+          style={styles.deleteBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.deleteBtnText}>✕</Text>
+        </TouchableOpacity>
+      </View>
     ),
     [handleDelete]
   );
 
+  // ==================== HISTORY SCREEN ====================
+  if (screen === 'history') {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.inner}>
+          {/* History Header */}
+          <View style={styles.historyHeader}>
+            <TouchableOpacity
+              onPress={() => setScreen('home')}
+              activeOpacity={0.7}
+              style={styles.backBtn}
+            >
+              <Text style={styles.backBtnText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.historyTitle}>Transaction History</Text>
+            <Text style={styles.historySubtitle}>
+              {transactions.length} total transaction{transactions.length !== 1 ? 's' : ''}
+              {' · '}
+              {formatAmount(transactions.reduce((s, t) => s + t.amount, 0))}
+            </Text>
+          </View>
+
+          {transactions.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>📭</Text>
+              <Text style={styles.emptyText}>No transaction history</Text>
+            </View>
+          ) : (
+            <SectionList
+              sections={groupedTransactions}
+              renderItem={renderTransaction}
+              renderSectionHeader={({ section }) => (
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionHeaderText}>{section.title}</Text>
+                  <Text style={styles.sectionHeaderTotal}>
+                    {formatAmount(section.total)}
+                  </Text>
+                </View>
+              )}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.historyListContent}
+              stickySectionHeadersEnabled={true}
+            />
+          )}
+
+          {/* Undo Bar */}
+          {lastDeleted && (
+            <Animated.View style={[styles.undoBar, { opacity: undoAnim }]}>
+              <Text style={styles.undoText}>
+                Deleted {formatAmount(lastDeleted.amount)} {lastDeleted.description}
+              </Text>
+              <TouchableOpacity onPress={handleUndo} activeOpacity={0.7}>
+                <Text style={styles.undoBtn}>UNDO</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // ==================== HOME SCREEN ====================
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -276,26 +345,26 @@ export default function App() {
           </View>
         )}
 
-        {/* ===== TRANSACTIONS LIST ===== */}
+        {/* ===== TODAY'S TRANSACTIONS ===== */}
         <View style={styles.listSection}>
           <Text style={styles.sectionTitle}>
-            Recent Transactions
-            {transactions.length > 0 && (
-              <Text style={styles.sectionCount}> ({transactions.length})</Text>
+            Today's Transactions
+            {todayTransactions.length > 0 && (
+              <Text style={styles.sectionCount}> ({todayTransactions.length})</Text>
             )}
           </Text>
 
-          {transactions.length === 0 ? (
+          {todayTransactions.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>📝</Text>
-              <Text style={styles.emptyText}>No transactions yet</Text>
+              <Text style={styles.emptyText}>No transactions today</Text>
               <Text style={styles.emptyHint}>
                 Type something like "12 chicken rice" above
               </Text>
             </View>
           ) : (
             <FlatList
-              data={transactions}
+              data={todayTransactions}
               renderItem={renderTransaction}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
@@ -304,6 +373,17 @@ export default function App() {
             />
           )}
         </View>
+
+        {/* ===== HISTORY BUTTON ===== */}
+        <TouchableOpacity
+          style={styles.historyBtn}
+          onPress={() => setScreen('history')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.historyBtnIcon}>📋</Text>
+          <Text style={styles.historyBtnText}>Transaction History</Text>
+          <Text style={styles.historyBtnArrow}>→</Text>
+        </TouchableOpacity>
 
         {/* ===== UNDO BAR ===== */}
         {lastDeleted && (
@@ -500,7 +580,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
   transactionRow: {
     flexDirection: 'row',
@@ -550,6 +630,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FF6B6B',
   },
+  deleteBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#1E1E35',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  deleteBtnText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '700',
+  },
 
   // Empty State
   emptyState: {
@@ -570,6 +664,80 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#444',
     marginTop: 4,
+  },
+
+  // History Button (bottom of home screen)
+  historyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1A1A2E',
+    borderRadius: 14,
+    paddingVertical: 16,
+    marginBottom: Platform.OS === 'ios' ? 36 : 24,
+    borderWidth: 1,
+    borderColor: '#2A2A4A',
+    gap: 8,
+  },
+  historyBtnIcon: {
+    fontSize: 16,
+  },
+  historyBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  historyBtnArrow: {
+    fontSize: 16,
+    color: '#6C5CE7',
+    fontWeight: '700',
+  },
+
+  // History Screen
+  historyHeader: {
+    marginBottom: 20,
+  },
+  backBtn: {
+    marginBottom: 12,
+  },
+  backBtnText: {
+    fontSize: 16,
+    color: '#6C5CE7',
+    fontWeight: '700',
+  },
+  historyTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  historySubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    backgroundColor: '#0A0A0F',
+  },
+  sectionHeaderText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sectionHeaderTotal: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF6B6B',
+  },
+  historyListContent: {
+    paddingBottom: 100,
   },
 
   // Undo Bar
