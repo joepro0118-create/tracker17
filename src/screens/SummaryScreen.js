@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { getCategoryColor, getCategoryIcon } from '../utils/parser';
 import { formatAmount, isThisMonth, isLastMonth, getWeeklyTotals, getMonthName } from '../utils/helpers';
+import AppIcon from '../components/AppIcon';
 
 export default function SummaryScreen({ transactions }) {
   const thisMonthTxns = useMemo(() => transactions.filter((t) => isThisMonth(t.date)), [transactions]);
@@ -27,7 +28,10 @@ export default function SummaryScreen({ transactions }) {
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-      <Text style={s.pageTitle}>📊 Summary</Text>
+      <View style={s.titleRow}>
+        <AppIcon name="chart-bar" size={22} color="#4FD1C5" />
+        <Text style={s.pageTitle}> Summary</Text>
+      </View>
       <Text style={s.pageSubtitle}>{getMonthName()}</Text>
 
       {/* Month comparison */}
@@ -58,7 +62,10 @@ export default function SummaryScreen({ transactions }) {
           {categoryBreakdown.map(({ cat, total, pct }) => (
             <View key={cat} style={s.barRow}>
               <View style={s.barLabelRow}>
-                <Text style={s.barCatText}>{getCategoryIcon(cat)} {cat}</Text>
+                <View style={s.barCatLabel}>
+                  <AppIcon name={getCategoryIcon(cat)} size={14} color={getCategoryColor(cat)} />
+                  <Text style={s.barCatText}> {cat}</Text>
+                </View>
                 <Text style={s.barAmt}>{formatAmount(total)}</Text>
               </View>
               <View style={s.barTrack}>
@@ -92,6 +99,7 @@ export default function SummaryScreen({ transactions }) {
 const s = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingHorizontal: 20, paddingBottom: 100 },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
   pageTitle: { fontSize: 26, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
   pageSubtitle: { fontSize: 14, color: '#666', marginTop: 2, marginBottom: 20 },
   monthRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
@@ -103,7 +111,8 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#FFF', letterSpacing: -0.3, marginBottom: 14 },
   barSection: { gap: 14 },
   barRow: {},
-  barLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  barLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  barCatLabel: { flexDirection: 'row', alignItems: 'center' },
   barCatText: { fontSize: 14, color: '#CCC', fontWeight: '600' },
   barAmt: { fontSize: 14, fontWeight: '700', color: '#FFF' },
   barTrack: { height: 8, backgroundColor: '#1A1A2E', borderRadius: 4, overflow: 'hidden' },

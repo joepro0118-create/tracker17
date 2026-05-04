@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platfo
 import { detectCategory, getCategoryColor, getCategoryIcon } from '../utils/parser';
 import { addRecurring, removeRecurring, toggleRecurringActive } from '../utils/storage';
 import { formatAmount, generateId } from '../utils/helpers';
+import AppIcon from '../components/AppIcon';
 
 const FREQUENCIES = ['daily', 'weekly', 'monthly'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -72,7 +73,10 @@ export default function RecurringScreen({ recurring, setRecurring, onBack }) {
         <TouchableOpacity onPress={onBack} activeOpacity={0.7}>
           <Text style={s.backTxt}>← Back</Text>
         </TouchableOpacity>
-        <Text style={s.title}>🔁 Recurring</Text>
+        <View style={s.titleRow}>
+          <AppIcon name="refresh" size={22} color="#4FD1C5" />
+          <Text style={s.title}> Recurring</Text>
+        </View>
         <Text style={s.subtitle}>Auto-added on schedule</Text>
       </View>
 
@@ -131,11 +135,13 @@ export default function RecurringScreen({ recurring, setRecurring, onBack }) {
       </View>
       {preview && (
         <View style={s.preview}>
-          <Text style={s.previewTxt}>
-            {getCategoryIcon(detectCategory(preview.description))}{' '}
-            <Text style={{ color: '#FFF', fontWeight: '700' }}>{formatAmount(preview.amount)}</Text>
-            {' · '}{preview.description}{' · '}<Text style={{ color: '#6C5CE7' }}>{frequency}</Text>
-          </Text>
+          <View style={s.previewRow}>
+            <AppIcon name={getCategoryIcon(detectCategory(preview.description))} size={14} color="#888" />
+            <Text style={s.previewTxt}>
+              {' '}<Text style={{ color: '#FFF', fontWeight: '700' }}>{formatAmount(preview.amount)}</Text>
+              {' · '}{preview.description}{' · '}<Text style={{ color: '#6C5CE7' }}>{frequency}</Text>
+            </Text>
+          </View>
         </View>
       )}
 
@@ -145,19 +151,19 @@ export default function RecurringScreen({ recurring, setRecurring, onBack }) {
             <Text style={s.secTitle}>Active ({activeItems.length})</Text>
             {activeItems.map((item) => (
               <View key={item.id} style={s.itemRow}>
-                <View style={[s.catDot, { backgroundColor: getCategoryColor(item.category) }]}>
-                  <Text style={s.catEmoji}>{getCategoryIcon(item.category)}</Text>
+                <View style={[s.catDot, { backgroundColor: getCategoryColor(item.category) + '22' }]}>
+                  <AppIcon name={getCategoryIcon(item.category)} size={20} color={getCategoryColor(item.category)} />
                 </View>
                 <View style={s.itemInfo}>
                   <Text style={s.itemDesc}>{item.description}</Text>
                   <Text style={s.itemMeta}>{getScheduleText(item)} · {formatAmount(item.amount)}</Text>
                 </View>
                 <TouchableOpacity onPress={() => handleToggle(item.id)} style={s.pauseBtn} activeOpacity={0.7}>
-                  <Text style={s.pauseTxt}>⏸</Text>
+                  <AppIcon name="pause" size={16} color="#888" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(item.id)} style={s.delBtn}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Text style={s.delTxt}>✕</Text>
+                  <AppIcon name="close" size={13} color="#666" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -168,19 +174,19 @@ export default function RecurringScreen({ recurring, setRecurring, onBack }) {
             <Text style={[s.secTitle, { color: '#555' }]}>Paused ({inactiveItems.length})</Text>
             {inactiveItems.map((item) => (
               <View key={item.id} style={[s.itemRow, { opacity: 0.5 }]}>
-                <View style={[s.catDot, { backgroundColor: getCategoryColor(item.category) }]}>
-                  <Text style={s.catEmoji}>{getCategoryIcon(item.category)}</Text>
+                <View style={[s.catDot, { backgroundColor: getCategoryColor(item.category) + '22' }]}>
+                  <AppIcon name={getCategoryIcon(item.category)} size={20} color={getCategoryColor(item.category)} />
                 </View>
                 <View style={s.itemInfo}>
                   <Text style={s.itemDesc}>{item.description}</Text>
                   <Text style={s.itemMeta}>{getScheduleText(item)} · {formatAmount(item.amount)}</Text>
                 </View>
                 <TouchableOpacity onPress={() => handleToggle(item.id)} style={s.resumeBtn} activeOpacity={0.7}>
-                  <Text style={s.resumeTxt}>▶</Text>
+                  <AppIcon name="play" size={14} color="#4FD1C5" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(item.id)} style={s.delBtn}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Text style={s.delTxt}>✕</Text>
+                  <AppIcon name="close" size={13} color="#666" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -188,7 +194,7 @@ export default function RecurringScreen({ recurring, setRecurring, onBack }) {
         )}
         {recurring.length === 0 && (
           <View style={s.empty}>
-            <Text style={s.emptyEmoji}>🔁</Text>
+            <AppIcon name="refresh" size={40} color="#333" />
             <Text style={s.emptyTxt}>No recurring expenses</Text>
             <Text style={s.emptyHint}>Add "spotify 15" as monthly above</Text>
           </View>
@@ -201,6 +207,7 @@ export default function RecurringScreen({ recurring, setRecurring, onBack }) {
 const s = StyleSheet.create({
   container: { flex: 1, paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingHorizontal: 20 },
   header: { marginBottom: 16 },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
   backTxt: { fontSize: 15, color: '#6C5CE7', fontWeight: '700', marginBottom: 10 },
   title: { fontSize: 26, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
   subtitle: { fontSize: 13, color: '#666', marginTop: 2 },
@@ -226,22 +233,19 @@ const s = StyleSheet.create({
   addBtnOff: { backgroundColor: '#333' },
   addBtnTxt: { fontSize: 22, color: '#FFF', fontWeight: '700' },
   preview: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#14142A', borderRadius: 10, borderWidth: 1, borderColor: '#222244', marginBottom: 16 },
-  previewTxt: { fontSize: 13, color: '#999' },
+  previewRow: { flexDirection: 'row', alignItems: 'center' },
+  previewTxt: { fontSize: 13, color: '#999', flex: 1 },
   secTitle: { fontSize: 15, fontWeight: '700', color: '#FFF', marginBottom: 8, marginTop: 4 },
   itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, backgroundColor: '#12121F', borderRadius: 14, marginBottom: 8, borderWidth: 1, borderColor: '#1E1E35' },
   catDot: { width: 38, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  catEmoji: { fontSize: 17 },
   itemInfo: { flex: 1 },
   itemDesc: { fontSize: 14, fontWeight: '600', color: '#FFF', textTransform: 'capitalize' },
   itemMeta: { fontSize: 11, color: '#666', marginTop: 2 },
   pauseBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#1E1E35', justifyContent: 'center', alignItems: 'center', marginRight: 6 },
-  pauseTxt: { fontSize: 14 },
   resumeBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#1A2E1A', justifyContent: 'center', alignItems: 'center', marginRight: 6 },
-  resumeTxt: { fontSize: 13, color: '#4ECDC4' },
   delBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#1E1E35', justifyContent: 'center', alignItems: 'center' },
   delTxt: { fontSize: 12, color: '#666', fontWeight: '700' },
-  empty: { alignItems: 'center', paddingVertical: 40 },
-  emptyEmoji: { fontSize: 40, marginBottom: 10 },
+  empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyTxt: { fontSize: 15, color: '#666', fontWeight: '600' },
-  emptyHint: { fontSize: 12, color: '#444', marginTop: 4 },
+  emptyHint: { fontSize: 12, color: '#444' },
 });

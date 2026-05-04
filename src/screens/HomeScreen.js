@@ -4,6 +4,7 @@ import {
   FlatList, Keyboard, Animated, Platform, Modal, ScrollView,
 } from 'react-native';
 import { parseInput, detectCategory, getCategoryColor, getCategoryIcon } from '../utils/parser';
+import AppIcon from '../components/AppIcon';
 import {
   addTransaction, removeTransaction, updateTransaction,
   loadBudget, saveBudget,
@@ -105,17 +106,20 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
   const renderTxn = useCallback(({ item }) => (
     <View style={s.txnRow}>
       <TouchableOpacity onPress={() => openEdit(item)} style={s.txnLeft} activeOpacity={0.7}>
-        <View style={[s.catDot, { backgroundColor: getCategoryColor(item.category) }]}>
-          <Text style={s.catEmoji}>{getCategoryIcon(item.category)}</Text>
+        <View style={[s.catDot, { backgroundColor: getCategoryColor(item.category) + '22' }]}>
+          <AppIcon name={getCategoryIcon(item.category)} size={20} color={getCategoryColor(item.category)} />
         </View>
         <View style={s.txnInfo}>
-          <Text style={s.txnDesc}>{item.description}{item.isRecurring ? ' 🔁' : ''}</Text>
+          <View style={s.txnDescRow}>
+            <Text style={s.txnDesc}>{item.description}</Text>
+            {item.isRecurring && <AppIcon name="refresh" size={12} color="#4FD1C5" style={{ marginLeft: 4, marginTop: 2 }} />}
+          </View>
           <Text style={s.txnMeta}>{item.category} · {formatDate(item.date)}</Text>
         </View>
       </TouchableOpacity>
       <Text style={s.txnAmt}>-{formatAmount(item.amount)}</Text>
       <TouchableOpacity onPress={() => handleDelete(item)} style={s.delBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Text style={s.delTxt}>✕</Text>
+        <AppIcon name="close" size={13} color="#666" />
       </TouchableOpacity>
     </View>
   ), [handleDelete, openEdit]);
@@ -123,12 +127,17 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View>
-          <Text style={s.title}>💸 Tracker17</Text>
-          <Text style={s.subtitle}>Personal Money Tracker</Text>
+        <View style={s.titleRow}>
+          <View style={s.logoWrap}>
+            <AppIcon name="wallet-outline" size={20} color="#4FD1C5" />
+          </View>
+          <View>
+            <Text style={s.title}>Tracker17</Text>
+            <Text style={s.subtitle}>Personal Money Tracker</Text>
+          </View>
         </View>
         <TouchableOpacity onPress={() => { setBudgetW(budget.weekly > 0 ? String(budget.weekly) : ''); setBudgetM(budget.monthly > 0 ? String(budget.monthly) : ''); setBudgetModal(true); }} style={s.settBtn}>
-          <Text style={s.settTxt}>⚙️</Text>
+          <AppIcon name="cog-outline" size={22} color="#888" />
         </TouchableOpacity>
       </View>
 
@@ -141,7 +150,12 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
         <View style={s.card}>
           <Text style={s.cardLabel}>This Week</Text>
           <Text style={s.cardAmt}>{formatAmount(weekTotal)}</Text>
-          {weeklyBreakdown.length > 0 && <Text style={s.cardSub} numberOfLines={1}>Top: {getCategoryIcon(weeklyBreakdown[0][0])} {weeklyBreakdown[0][0]}</Text>}
+          {weeklyBreakdown.length > 0 && (
+            <View style={s.cardSubRow}>
+              <AppIcon name={getCategoryIcon(weeklyBreakdown[0][0])} size={11} color="#666" />
+              <Text style={s.cardSub} numberOfLines={1}> {weeklyBreakdown[0][0]}</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -177,7 +191,10 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
         </View>
         {preview && (
           <View style={s.preview}>
-            <Text style={s.previewTxt}>{getCategoryIcon(preview.category)} <Text style={s.previewAmt}>{formatAmount(preview.amount)}</Text>{' → '}{preview.description}<Text style={[s.previewCat, { color: getCategoryColor(preview.category) }]}> ({preview.category})</Text></Text>
+            <View style={s.previewRow}>
+              <AppIcon name={getCategoryIcon(preview.category)} size={14} color={getCategoryColor(preview.category)} />
+              <Text style={s.previewTxt}> <Text style={s.previewAmt}>{formatAmount(preview.amount)}</Text>{' → '}{preview.description}<Text style={[s.previewCat, { color: getCategoryColor(preview.category) }]}> ({preview.category})</Text></Text>
+            </View>
           </View>
         )}
       </View>
@@ -187,7 +204,10 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
           <Text style={s.secTitle}>Weekly Breakdown</Text>
           <View style={s.chips}>
             {weeklyBreakdown.map(([cat, total]) => (
-              <View key={cat} style={s.chip}><Text style={s.chipEmoji}>{getCategoryIcon(cat)}</Text><Text style={s.chipTxt}>{formatAmount(total)}</Text></View>
+              <View key={cat} style={s.chip}>
+                <AppIcon name={getCategoryIcon(cat)} size={13} color={getCategoryColor(cat)} />
+                <Text style={s.chipTxt}>{formatAmount(total)}</Text>
+              </View>
             ))}
           </View>
         </View>
@@ -196,14 +216,20 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
       <View style={s.listSection}>
         <Text style={s.secTitle}>Today's Transactions{todayTxns.length > 0 && <Text style={s.secCount}> ({todayTxns.length})</Text>}</Text>
         {todayTxns.length === 0 ? (
-          <View style={s.empty}><Text style={s.emptyEmoji}>📝</Text><Text style={s.emptyTxt}>No transactions today</Text><Text style={s.emptyHint}>Type "12 chicken rice" above</Text></View>
+          <View style={s.empty}>
+            <AppIcon name="note-text-outline" size={36} color="#333" />
+            <Text style={s.emptyTxt}>No transactions today</Text>
+            <Text style={s.emptyHint}>Type "12 chicken rice" above</Text>
+          </View>
         ) : (
           <FlatList data={todayTxns} renderItem={renderTxn} keyExtractor={(i) => i.id} showsVerticalScrollIndicator={false} style={s.list} contentContainerStyle={{ paddingBottom: 8 }} />
         )}
       </View>
 
       <TouchableOpacity style={s.oweBtn} onPress={() => onNavigate('owe')} activeOpacity={0.7}>
-        <Text>🤝</Text><Text style={s.oweTxt}>Owe Tracker</Text><Text style={s.oweArrow}>→</Text>
+        <AppIcon name="handshake-outline" size={20} color="#4FD1C5" />
+        <Text style={s.oweTxt}>Owe Tracker</Text>
+        <AppIcon name="arrow-right" size={18} color="#6C5CE7" />
       </TouchableOpacity>
 
       {lastDeleted && (
@@ -216,7 +242,7 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
       <Modal visible={budgetModal} transparent animationType="slide">
         <View style={s.overlay}>
           <View style={s.modalBox}>
-            <Text style={s.modalTitle}>💰 Set Budget</Text>
+            <View style={s.modalTitleRow}><AppIcon name="currency-usd" size={20} color="#4FD1C5" /><Text style={s.modalTitle}> Set Budget</Text></View>
             <Text style={s.modalLbl}>Weekly Budget (RM)</Text>
             <TextInput style={s.modalInput} value={budgetW} onChangeText={setBudgetW} keyboardType="numeric" placeholder="e.g. 300" placeholderTextColor="#555" />
             <Text style={s.modalLbl}>Monthly Budget (RM)</Text>
@@ -232,7 +258,7 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
       <Modal visible={editModal} transparent animationType="slide">
         <View style={s.overlay}>
           <View style={s.modalBox}>
-            <Text style={s.modalTitle}>✏️ Edit Transaction</Text>
+            <View style={s.modalTitleRow}><AppIcon name="pencil-outline" size={20} color="#6C5CE7" /><Text style={s.modalTitle}> Edit Transaction</Text></View>
             <Text style={s.modalLbl}>Amount (RM)</Text>
             <TextInput style={s.modalInput} value={editAmt} onChangeText={setEditAmt} keyboardType="numeric" placeholder="Amount" placeholderTextColor="#555" />
             <Text style={s.modalLbl}>Description</Text>
@@ -241,7 +267,10 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
               {CATEGORIES.map((cat) => (
                 <TouchableOpacity key={cat} onPress={() => setEditCat(cat)} style={[s.catChip, editCat === cat && { borderColor: getCategoryColor(cat), backgroundColor: '#1E1E35' }]}>
-                  <Text style={s.catChipTxt}>{getCategoryIcon(cat)} {cat}</Text>
+                  <View style={s.catChipRow}>
+                    <AppIcon name={getCategoryIcon(cat)} size={13} color={getCategoryColor(cat)} />
+                    <Text style={s.catChipTxt}> {cat}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -258,15 +287,18 @@ export default function HomeScreen({ transactions, setTransactions, onNavigate }
 
 const s = StyleSheet.create({
   container: { flex: 1, paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingHorizontal: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
-  title: { fontSize: 26, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: '#666', marginTop: 2 },
-  settBtn: { padding: 8 }, settTxt: { fontSize: 22 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(79,209,197,0.12)', justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
+  subtitle: { fontSize: 12, color: '#666', marginTop: 1 },
+  settBtn: { padding: 8 },
+  cardSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
   summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
   card: { flex: 1, borderRadius: 16, padding: 14, paddingVertical: 16, backgroundColor: '#1A1A2E', borderWidth: 1, borderColor: '#2A2A4A' },
   cardLabel: { fontSize: 11, color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
   cardAmt: { fontSize: 20, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
-  cardSub: { fontSize: 11, color: '#666', marginTop: 3 },
+  cardSub: { fontSize: 11, color: '#666' },
   budgetBox: { backgroundColor: '#12121F', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1E1E35' },
   budgetRow: {},
   budgetTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
@@ -281,33 +313,35 @@ const s = StyleSheet.create({
   addBtnOff: { backgroundColor: '#333' },
   addBtnTxt: { fontSize: 22, color: '#FFF', fontWeight: '700' },
   preview: { marginTop: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#14142A', borderRadius: 10, borderWidth: 1, borderColor: '#222244' },
-  previewTxt: { fontSize: 13, color: '#999' }, previewAmt: { fontWeight: '700', color: '#FFF' }, previewCat: { fontWeight: '600' },
+  previewRow: { flexDirection: 'row', alignItems: 'center' },
+  previewTxt: { fontSize: 13, color: '#999', flex: 1 }, previewAmt: { fontWeight: '700', color: '#FFF' }, previewCat: { fontWeight: '600' },
   bdSection: { marginBottom: 14 },
   secTitle: { fontSize: 15, fontWeight: '700', color: '#FFF', letterSpacing: -0.3 },
   secCount: { color: '#666', fontWeight: '500' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  chip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A1A2E', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, gap: 4, borderWidth: 1, borderColor: '#2A2A4A' },
-  chipEmoji: { fontSize: 13 }, chipTxt: { fontSize: 12, color: '#CCC', fontWeight: '600' },
+  chip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A1A2E', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, gap: 6, borderWidth: 1, borderColor: '#2A2A4A' },
+  chipTxt: { fontSize: 12, color: '#CCC', fontWeight: '600' },
   listSection: { flex: 1 }, list: { marginTop: 10 },
   txnRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, backgroundColor: '#12121F', borderRadius: 14, marginBottom: 8, borderWidth: 1, borderColor: '#1E1E35' },
   txnLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
   catDot: { width: 38, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  catEmoji: { fontSize: 17 },
   txnInfo: { flex: 1 },
+  txnDescRow: { flexDirection: 'row', alignItems: 'center' },
   txnDesc: { fontSize: 14, fontWeight: '600', color: '#FFF', textTransform: 'capitalize' },
   txnMeta: { fontSize: 11, color: '#666', marginTop: 2 },
   txnAmt: { fontSize: 14, fontWeight: '700', color: '#FF6B6B' },
   delBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#1E1E35', justifyContent: 'center', alignItems: 'center', marginLeft: 6 },
   delTxt: { fontSize: 12, color: '#666', fontWeight: '700' },
   empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: 32 },
-  emptyEmoji: { fontSize: 36, marginBottom: 8 }, emptyTxt: { fontSize: 15, color: '#666', fontWeight: '600' }, emptyHint: { fontSize: 12, color: '#444', marginTop: 4 },
+  emptyTxt: { fontSize: 15, color: '#666', fontWeight: '600', marginTop: 10 }, emptyHint: { fontSize: 12, color: '#444', marginTop: 4 },
   oweBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1A2E', borderRadius: 14, paddingVertical: 13, marginBottom: 6, borderWidth: 1, borderColor: '#2A2A4A', gap: 8 },
   oweTxt: { fontSize: 14, fontWeight: '700', color: '#FFF' }, oweArrow: { fontSize: 15, color: '#6C5CE7', fontWeight: '700' },
   undoBar: { position: 'absolute', bottom: 80, left: 20, right: 20, backgroundColor: '#2A2A4A', borderRadius: 12, padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#3A3A5A' },
   undoTxt: { color: '#CCC', fontSize: 14, flex: 1 }, undoBtn: { color: '#6C5CE7', fontWeight: '800', fontSize: 14, letterSpacing: 1, marginLeft: 12 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: '#12121F', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, borderWidth: 1, borderColor: '#1E1E35' },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#FFF', marginBottom: 18 },
+  modalTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#FFF' },
   modalLbl: { fontSize: 11, color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   modalInput: { backgroundColor: '#1A1A2E', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: '#FFF', borderWidth: 1, borderColor: '#2A2A4A', marginBottom: 14 },
   modalBtns: { flexDirection: 'row', gap: 12, marginTop: 4 },
@@ -316,5 +350,6 @@ const s = StyleSheet.create({
   saveBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#6C5CE7', alignItems: 'center' },
   saveTxt: { color: '#FFF', fontWeight: '700', fontSize: 15 },
   catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#1A1A2E', borderWidth: 1.5, borderColor: '#2A2A4A', marginRight: 8 },
+  catChipRow: { flexDirection: 'row', alignItems: 'center' },
   catChipTxt: { color: '#CCC', fontSize: 12, fontWeight: '600' },
 });

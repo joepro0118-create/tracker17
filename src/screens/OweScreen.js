@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Keyboard } from 'react-native';
 import { formatAmount, formatDate, generateId } from '../utils/helpers';
 import { addDebt, removeDebt, updateDebt, toggleDebtSettled } from '../utils/storage';
+import AppIcon from '../components/AppIcon';
 
 export default function OweScreen({ debts, setDebts, onBack }) {
   const [input, setInput] = useState('');
@@ -47,7 +48,11 @@ export default function OweScreen({ debts, setDebts, onBack }) {
   const renderDebt = (d, isSettled) => (
     <View key={d.id} style={[s.row, isSettled && { opacity: 0.5 }]}>
       <TouchableOpacity onPress={() => handleToggle(d.id)} style={s.checkbox} activeOpacity={0.6}>
-        <Text style={isSettled ? s.checked : s.unchecked}>{isSettled ? '☑' : '☐'}</Text>
+        <AppIcon
+          name={isSettled ? 'checkbox-marked-outline' : 'checkbox-blank-outline'}
+          size={22}
+          color={isSettled ? '#4ECDC4' : '#6C5CE7'}
+        />
       </TouchableOpacity>
       <View style={s.info}>
         <Text style={[s.personTxt, isSettled && s.strikethrough]}>
@@ -60,7 +65,7 @@ export default function OweScreen({ debts, setDebts, onBack }) {
       </Text>
       <TouchableOpacity onPress={() => handleDelete(d.id)} style={s.delBtn}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Text style={s.delTxt}>✕</Text>
+        <AppIcon name="close" size={13} color="#666" />
       </TouchableOpacity>
     </View>
   );
@@ -71,7 +76,10 @@ export default function OweScreen({ debts, setDebts, onBack }) {
         <TouchableOpacity onPress={onBack} activeOpacity={0.7}>
           <Text style={s.backTxt}>← Back</Text>
         </TouchableOpacity>
-        <Text style={s.title}>💸 Owe Tracker</Text>
+        <View style={s.titleRow}>
+          <AppIcon name="handshake-outline" size={22} color="#4FD1C5" />
+          <Text style={s.title}> Owe Tracker</Text>
+        </View>
         <Text style={s.subtitle}>Track who owes who</Text>
       </View>
 
@@ -128,7 +136,7 @@ export default function OweScreen({ debts, setDebts, onBack }) {
         )}
         {debts.length === 0 && (
           <View style={s.empty}>
-            <Text style={s.emptyEmoji}>🤝</Text>
+            <AppIcon name="handshake-outline" size={40} color="#333" />
             <Text style={s.emptyTxt}>No debts tracked</Text>
             <Text style={s.emptyHint}>Type "ali 20 lunch" above</Text>
           </View>
@@ -141,6 +149,7 @@ export default function OweScreen({ debts, setDebts, onBack }) {
 const s = StyleSheet.create({
   container: { flex: 1, paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingHorizontal: 20 },
   header: { marginBottom: 16 },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
   backTxt: { fontSize: 15, color: '#6C5CE7', fontWeight: '700', marginBottom: 10 },
   title: { fontSize: 26, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
   subtitle: { fontSize: 13, color: '#666', marginTop: 2 },
@@ -171,8 +180,7 @@ const s = StyleSheet.create({
   amtTxt: { fontSize: 14, fontWeight: '700', marginRight: 6 },
   delBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#1E1E35', justifyContent: 'center', alignItems: 'center' },
   delTxt: { fontSize: 12, color: '#666', fontWeight: '700' },
-  empty: { alignItems: 'center', paddingVertical: 40 },
-  emptyEmoji: { fontSize: 40, marginBottom: 10 },
+  empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyTxt: { fontSize: 15, color: '#666', fontWeight: '600' },
-  emptyHint: { fontSize: 12, color: '#444', marginTop: 4 },
+  emptyHint: { fontSize: 12, color: '#444' },
 });

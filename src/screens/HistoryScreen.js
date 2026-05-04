@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, SectionList, Anima
 import { getCategoryColor, getCategoryIcon } from '../utils/parser';
 import { removeTransaction, updateTransaction } from '../utils/storage';
 import { formatAmount, formatDate } from '../utils/helpers';
+import AppIcon from '../components/AppIcon';
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Bills', 'Health', 'Others'];
 
@@ -71,17 +72,20 @@ export default function HistoryScreen({ transactions, setTransactions, onBack })
   const renderItem = useCallback(({ item }) => (
     <View style={s.txnRow}>
       <TouchableOpacity onPress={() => openEdit(item)} style={s.txnLeft} activeOpacity={0.7}>
-        <View style={[s.catDot, { backgroundColor: getCategoryColor(item.category) }]}>
-          <Text style={s.catEmoji}>{getCategoryIcon(item.category)}</Text>
+        <View style={[s.catDot, { backgroundColor: getCategoryColor(item.category) + '22' }]}>
+          <AppIcon name={getCategoryIcon(item.category)} size={20} color={getCategoryColor(item.category)} />
         </View>
         <View style={s.txnInfo}>
-          <Text style={s.txnDesc}>{item.description}{item.isRecurring ? ' 🔁' : ''}</Text>
+          <View style={s.txnDescRow}>
+            <Text style={s.txnDesc}>{item.description}</Text>
+            {item.isRecurring && <AppIcon name="refresh" size={12} color="#4FD1C5" style={{ marginLeft: 4, marginTop: 1 }} />}
+          </View>
           <Text style={s.txnMeta}>{item.category} · {formatDate(item.date)}</Text>
         </View>
       </TouchableOpacity>
       <Text style={s.txnAmt}>-{formatAmount(item.amount)}</Text>
       <TouchableOpacity onPress={() => handleDelete(item)} style={s.delBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Text style={s.delTxt}>✕</Text>
+        <AppIcon name="close" size={13} color="#666" />
       </TouchableOpacity>
     </View>
   ), [handleDelete]);
@@ -98,7 +102,7 @@ export default function HistoryScreen({ transactions, setTransactions, onBack })
 
       {/* Search Bar */}
       <View style={s.searchRow}>
-        <Text style={s.searchIcon}>🔍</Text>
+        <AppIcon name="magnify" size={18} color="#555" />
         <TextInput
           style={s.searchInput}
           placeholder="Search by name, category, amount..."
@@ -111,7 +115,7 @@ export default function HistoryScreen({ transactions, setTransactions, onBack })
         />
         {search.length > 0 && (
           <TouchableOpacity onPress={() => setSearch('')} style={s.clearBtn}>
-            <Text style={s.clearTxt}>✕</Text>
+            <AppIcon name="close-circle" size={16} color="#666" />
           </TouchableOpacity>
         )}
       </View>
@@ -121,7 +125,7 @@ export default function HistoryScreen({ transactions, setTransactions, onBack })
 
       {grouped.length === 0 ? (
         <View style={s.empty}>
-          <Text style={s.emptyEmoji}>{search ? '🔍' : '📭'}</Text>
+          <AppIcon name={search ? 'magnify' : 'email-outline'} size={40} color="#333" />
           <Text style={s.emptyTxt}>{search ? 'No results found' : 'No transaction history'}</Text>
         </View>
       ) : (
@@ -151,7 +155,7 @@ export default function HistoryScreen({ transactions, setTransactions, onBack })
       <Modal visible={editModal} transparent animationType="slide">
         <View style={s.overlay}>
           <View style={s.modalBox}>
-            <Text style={s.modalTitle}>✏️ Edit Transaction</Text>
+            <View style={s.modalTitleRow}><AppIcon name="pencil-outline" size={20} color="#6C5CE7" /><Text style={s.modalTitle}> Edit Transaction</Text></View>
             <Text style={s.modalLbl}>Amount (RM)</Text>
             <TextInput style={s.modalInput} value={editAmt} onChangeText={setEditAmt} keyboardType="numeric" placeholder="Amount" placeholderTextColor="#555" />
             <Text style={s.modalLbl}>Description</Text>
@@ -160,7 +164,10 @@ export default function HistoryScreen({ transactions, setTransactions, onBack })
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
               {CATEGORIES.map((cat) => (
                 <TouchableOpacity key={cat} onPress={() => setEditCat(cat)} style={[s.catChip, editCat === cat && { borderColor: getCategoryColor(cat), backgroundColor: '#1E1E35' }]}>
-                  <Text style={s.catChipTxt}>{getCategoryIcon(cat)} {cat}</Text>
+                  <View style={s.catChipRow}>
+                    <AppIcon name={getCategoryIcon(cat)} size={13} color={getCategoryColor(cat)} />
+                    <Text style={s.catChipTxt}> {cat}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -189,14 +196,14 @@ const s = StyleSheet.create({
   txnRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, backgroundColor: '#12121F', borderRadius: 14, marginBottom: 8, borderWidth: 1, borderColor: '#1E1E35' },
   txnLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
   catDot: { width: 38, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  catEmoji: { fontSize: 17 }, txnInfo: { flex: 1 },
+  txnInfo: { flex: 1 }, txnDescRow: { flexDirection: 'row', alignItems: 'center' },
   txnDesc: { fontSize: 14, fontWeight: '600', color: '#FFF', textTransform: 'capitalize' },
   txnMeta: { fontSize: 11, color: '#666', marginTop: 2 },
   txnAmt: { fontSize: 14, fontWeight: '700', color: '#FF6B6B' },
   delBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#1E1E35', justifyContent: 'center', alignItems: 'center', marginLeft: 6 },
   delTxt: { fontSize: 12, color: '#666', fontWeight: '700' },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyEmoji: { fontSize: 40, marginBottom: 10 }, emptyTxt: { fontSize: 15, color: '#666', fontWeight: '600' },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  emptyTxt: { fontSize: 15, color: '#666', fontWeight: '600' },
   secHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4, backgroundColor: '#0A0A0F' },
   secHeaderTxt: { fontSize: 12, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 },
   secHeaderTotal: { fontSize: 13, fontWeight: '700', color: '#FF6B6B' },
@@ -204,7 +211,8 @@ const s = StyleSheet.create({
   undoTxt: { color: '#CCC', fontSize: 14, flex: 1 }, undoBtn: { color: '#6C5CE7', fontWeight: '800', fontSize: 14, letterSpacing: 1, marginLeft: 12 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: '#12121F', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, borderWidth: 1, borderColor: '#1E1E35' },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#FFF', marginBottom: 18 },
+  modalTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#FFF' },
   modalLbl: { fontSize: 11, color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   modalInput: { backgroundColor: '#1A1A2E', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: '#FFF', borderWidth: 1, borderColor: '#2A2A4A', marginBottom: 14 },
   modalBtns: { flexDirection: 'row', gap: 12, marginTop: 4 },
@@ -213,5 +221,6 @@ const s = StyleSheet.create({
   saveBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#6C5CE7', alignItems: 'center' },
   saveTxt: { color: '#FFF', fontWeight: '700', fontSize: 15 },
   catChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#1A1A2E', borderWidth: 1.5, borderColor: '#2A2A4A', marginRight: 8 },
+  catChipRow: { flexDirection: 'row', alignItems: 'center' },
   catChipTxt: { color: '#CCC', fontSize: 12, fontWeight: '600' },
 });

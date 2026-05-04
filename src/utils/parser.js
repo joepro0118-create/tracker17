@@ -23,12 +23,12 @@ const CATEGORY_COLORS = {
 };
 
 const CATEGORY_ICONS = {
-  Food: '🍜',
-  Transport: '🚗',
-  Shopping: '🛍️',
-  Bills: '📄',
-  Health: '💊',
-  Others: '💰',
+  Food: 'food-outline',
+  Transport: 'car-outline',
+  Shopping: 'shopping-outline',
+  Bills: 'receipt',
+  Health: 'pill',
+  Others: 'tag-outline',
 };
 
 /**

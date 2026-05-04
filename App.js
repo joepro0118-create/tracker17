@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import AppIcon from './src/components/AppIcon';
 
 import HomeScreen from './src/screens/HomeScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
@@ -13,10 +14,10 @@ import {
 } from './src/utils/storage';
 
 const TABS = [
-  { key: 'home',      label: 'Home',      icon: '🏠' },
-  { key: 'summary',   label: 'Summary',   icon: '📊' },
-  { key: 'recurring', label: 'Recurring', icon: '🔁' },
-  { key: 'history',   label: 'History',   icon: '📋' },
+  { key: 'home',      label: 'Home',      icon: 'home-outline',      iconActive: 'home' },
+  { key: 'summary',   label: 'Summary',   icon: 'chart-bar',         iconActive: 'chart-bar' },
+  { key: 'recurring', label: 'Recurring', icon: 'refresh',           iconActive: 'refresh' },
+  { key: 'history',   label: 'History',   icon: 'history',           iconActive: 'history' },
 ];
 
 export default function App() {
@@ -47,7 +48,9 @@ export default function App() {
     return (
       <View style={styles.loading}>
         <StatusBar style="light" />
-        <Text style={styles.loadingEmoji}>💸</Text>
+        <View style={styles.loadingIconWrap}>
+          <AppIcon name="wallet-outline" size={40} color="#4FD1C5" />
+        </View>
         <Text style={styles.loadingText}>Tracker17</Text>
       </View>
     );
@@ -110,20 +113,27 @@ export default function App() {
       {/* Bottom tab bar — hidden when owe overlay is open */}
       {!overlay && (
         <View style={styles.tabBar}>
-          {TABS.map((t) => (
-            <TouchableOpacity
-              key={t.key}
-              style={styles.tabItem}
-              onPress={() => setTab(t.key)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.tabIcon}>{t.icon}</Text>
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>
-                {t.label}
-              </Text>
-              {tab === t.key && <View style={styles.tabIndicator} />}
-            </TouchableOpacity>
-          ))}
+          {TABS.map((t) => {
+            const isActive = tab === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                style={styles.tabItem}
+                onPress={() => setTab(t.key)}
+                activeOpacity={0.7}
+              >
+                <AppIcon
+                  name={isActive ? t.iconActive : t.icon}
+                  size={22}
+                  color={isActive ? '#4FD1C5' : '#4A4A6A'}
+                />
+                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                  {t.label}
+                </Text>
+                {isActive && <View style={styles.tabIndicator} />}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
     </SafeAreaView>
@@ -141,7 +151,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingEmoji: { fontSize: 52, marginBottom: 12 },
+  loadingIconWrap: { width: 72, height: 72, borderRadius: 20, backgroundColor: 'rgba(79,209,197,0.12)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   loadingText: { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
   screenArea: {
     flex: 1,
@@ -162,15 +172,14 @@ const styles = StyleSheet.create({
     position: 'relative',
     paddingVertical: 4,
   },
-  tabIcon: { fontSize: 20, marginBottom: 3 },
-  tabLabel: { fontSize: 10, color: '#555', fontWeight: '600' },
-  tabLabelActive: { color: '#6C5CE7' },
+  tabLabel: { fontSize: 10, color: '#4A4A6A', fontWeight: '600', marginTop: 3 },
+  tabLabelActive: { color: '#4FD1C5' },
   tabIndicator: {
     position: 'absolute',
     top: -10,
     width: 20,
     height: 3,
-    backgroundColor: '#6C5CE7',
+    backgroundColor: '#4FD1C5',
     borderRadius: 2,
   },
 });
